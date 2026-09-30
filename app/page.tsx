@@ -384,7 +384,18 @@ export default function HomePage() {
 
   if (!authReady) return null;
 
-  if (supabaseBrowser && !userEmail) {
+  if (!supabaseBrowser) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#f6f7fb] px-4 text-slate-800">
+        <section className="w-full max-w-md rounded-2xl border border-amber-200 bg-white p-8 shadow-sm">
+          <h1 className="text-2xl font-bold text-slate-900">Authentication is not configured</h1>
+          <p className="mt-3 text-sm text-slate-600">Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY to the production environment, then redeploy.</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (!userEmail) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#f6f7fb] px-4 text-slate-800">
         <form onSubmit={handleAuth} className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
