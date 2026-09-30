@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { getAuthenticatedRequest } from "@/lib/auth-server";
 import { defaultProfile, defaultTemplate, type CloudState } from "@/lib/storage";
 
-const STATE_ID = "default";
 const MAX_CONTACTS = 10000;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -30,15 +29,12 @@ function isValidPatch(body: unknown): body is Partial<CloudState> {
   return body.profile !== undefined || body.template !== undefined || body.contacts !== undefined || body.trackerFileName !== undefined;
 }
 
-function unavailableResponse() {
-  return NextResponse.json({ error: "Supabase is not configured." }, { status: 503 });
-}
+export async function GET(request: Request) {
+  const authenticated = await getAuthenticatedRequest(request);
+  if (authenticated instanceof NextResponse) return authenticated;
+  const { supabase, user } = authenticated;
 
-export async function GET() {
-  const supabase = getSupabaseAdmin();
-  if (!supabase) return unavailableResponse();
-
-  const { data, error } = await supabase.from("app_state").select("profile, template, contacts, tracker_file_name").eq("id", STATE_ID).maybeSingle();
+  const { data, error } = await supabase.from("app_state").select("profile, template, contacts, tracker_file_name").eq("user_id", user.id).maybeSingle();
   if (error) {
     console.error("Supabase state read failed:", error);
     return NextResponse.json({ error: "Could not load application state." }, { status: 500 });
@@ -54,8 +50,9 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const supabase = getSupabaseAdmin();
-  if (!supabase) return unavailableResponse();
+  const authenticated = await getAuthenticatedRequest(request);
+  if (authenticated instanceof NextResponse) return authenticated;
+  const { supabase, user } = authenticated;
 
   let body: unknown;
   try {
@@ -65,7 +62,7 @@ export async function PATCH(request: Request) {
   }
   if (!isValidPatch(body)) return NextResponse.json({ error: "Invalid application state." }, { status: 400 });
 
-  const update: Record<string, unknown> = { id: STATE_ID };
+  const update: Record<string, unknown> = { id: user.id, user_id: user.id };
   if (body.profile !== undefined) update.profile = body.profile;
   if (body.template !== undefined) update.template = body.template;
   if (body.contacts !== undefined) update.contacts = body.contacts;

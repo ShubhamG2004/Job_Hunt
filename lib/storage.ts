@@ -1,4 +1,5 @@
 import type { Contact, EmailTemplate, ProfileData } from "@/types/contact";
+import { getSupabaseAuthHeaders } from "@/lib/supabase-browser";
 
 const DB_NAME = "hr-outreach-manager";
 const STORE_NAME = "app-state";
@@ -26,7 +27,8 @@ export function defaultProfile(): ProfileData {
 
 export async function loadCloudState(): Promise<CloudState | null> {
   try {
-    const response = await fetch("/api/state", { cache: "no-store" });
+    const headers = await getSupabaseAuthHeaders();
+    const response = await fetch("/api/state", { cache: "no-store", headers });
     if (!response.ok) return null;
     return (await response.json()) as CloudState | null;
   } catch {
@@ -36,9 +38,11 @@ export async function loadCloudState(): Promise<CloudState | null> {
 
 async function updateCloudState(patch: Partial<CloudState>): Promise<boolean> {
   try {
+    const headers = await getSupabaseAuthHeaders();
+    headers["Content-Type"] = "application/json";
     const response = await fetch("/api/state", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(patch),
     });
     return response.ok;

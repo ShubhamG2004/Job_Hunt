@@ -1,4 +1,5 @@
 import type { ProfileData } from "@/types/contact";
+import { getSupabaseAuthHeaders } from "@/lib/supabase-browser";
 
 export function renderEmailTemplate(template: { subject: string; body: string }, data: {
   name: string;
@@ -35,11 +36,11 @@ export function openGmailCompose(to: string, subject: string, body: string) {
 }
 
 export async function sendDirectEmail(to: string, subject: string, body: string) {
+  const headers = await getSupabaseAuthHeaders();
+  headers["Content-Type"] = "application/json";
   const response = await fetch("/api/send-email", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify({ to, subject, body }),
   });
 

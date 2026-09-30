@@ -18,6 +18,7 @@ import {
   sendDirectEmail,
 } from "@/lib/email";
 import { extractEmailsFromPdfText, parsePdfText } from "@/lib/parser";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 import { loadCloudState, loadProfile, loadTemplate, loadTracker, saveProfile, saveTemplate, saveTracker } from "@/lib/storage";
 import { detectMissingColumns, isValidEmail, normalizeEmail } from "@/lib/validation";
 import type { Contact, ContactStatus, EmailTemplate, ParsedContact, ProfileData } from "@/types/contact";
@@ -41,6 +42,35 @@ export default function HomePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [extractedEmails, setExtractedEmails] = useState<string[]>([]);
   const [visibleContactCount, setVisibleContactCount] = useState(30);
+  const [authReady, setAuthReady] = useState(!supabaseBrowser);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authMode, setAuthMode] = useState<"sign-in" | "sign-up">("sign-in");
+  const [authMessage, setAuthMessage] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+
+  useEffect(() => {
+    if (!supabaseBrowser) {
+      return;
+    }
+
+    let mounted = true;
+    void supabaseBrowser.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
+      setUserEmail(data.session?.user.email || null);
+      setAuthReady(true);
+    });
+    const { data } = supabaseBrowser.auth.onAuthStateChange((_event, session) => {
+      setUserEmail(session?.user.email || null);
+      setAuthReady(true);
+    });
+
+    return () => {
+      mounted = false;
+      data.subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     if (cloudStateLoaded) saveProfile(profile);
@@ -49,6 +79,7 @@ export default function HomePage() {
     if (cloudStateLoaded) saveTemplate(template);
   }, [cloudStateLoaded, template]);
   useEffect(() => {
+    if (!authReady || (supabaseBrowser && !userEmail)) return;
     let cancelled = false;
 
     void (async () => {
@@ -76,7 +107,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [authReady, userEmail]);
   useEffect(() => {
     if (!trackerLoaded || !cloudStateLoaded) return;
     void saveTracker({ contacts, trackerFileName });
@@ -117,6 +148,29 @@ export default function HomePage() {
   const hasMoreContacts = visibleContactCount < filteredContacts.length;
 
   const showToast = (message: string) => setToast(message);
+
+  const handleAuth = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!supabaseBrowser) return;
+    setAuthBusy(true);
+    setAuthMessage("");
+    const result = authMode === "sign-in"
+      ? await supabaseBrowser.auth.signInWithPassword({ email: authEmail, password: authPassword })
+      : await supabaseBrowser.auth.signUp({ email: authEmail, password: authPassword });
+    setAuthBusy(false);
+
+    if (result.error) {
+      setAuthMessage(result.error.message);
+      return;
+    }
+    setAuthMessage(authMode === "sign-up" && !result.data.session ? "Check your email to confirm your account." : "");
+  };
+
+  const signOut = async () => {
+    await supabaseBrowser?.auth.signOut();
+    setContacts([]);
+    setTrackerLoaded(false);
+  };
 
   const importExcelFile = async (file: File) => {
     try {
@@ -328,6 +382,30 @@ export default function HomePage() {
     event.target.value = "";
   };
 
+  if (!authReady) return null;
+
+  if (supabaseBrowser && !userEmail) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#f6f7fb] px-4 text-slate-800">
+        <form onSubmit={handleAuth} className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+          <h1 className="text-2xl font-bold text-slate-900">HR Outreach Manager</h1>
+          <p className="mt-2 text-sm text-slate-500">{authMode === "sign-in" ? "Sign in to access your tracker." : "Create your private outreach workspace."}</p>
+          <div className="mt-6 space-y-3">
+            <input required type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="Email" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+            <input required minLength={6} type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="Password" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+            <button disabled={authBusy} className="w-full rounded-lg bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-50">
+              {authBusy ? "Please wait..." : authMode === "sign-in" ? "Sign In" : "Create Account"}
+            </button>
+          </div>
+          {authMessage && <p className="mt-4 text-sm text-amber-700">{authMessage}</p>}
+          <button type="button" onClick={() => { setAuthMode(authMode === "sign-in" ? "sign-up" : "sign-in"); setAuthMessage(""); }} className="mt-5 text-sm font-medium text-blue-600">
+            {authMode === "sign-in" ? "Create a new account" : "Already have an account? Sign in"}
+          </button>
+        </form>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[#f6f7fb] text-slate-800">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
@@ -337,6 +415,8 @@ export default function HomePage() {
             <p className="text-sm text-slate-500">15 Emails / Day</p>
           </div>
           <div className="flex items-center gap-3">
+            {userEmail && <span className="hidden text-sm text-slate-500 md:inline">{userEmail}</span>}
+            {userEmail && <button onClick={signOut} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700">Sign Out</button>}
             <label className="cursor-pointer rounded-lg border border-blue-600 bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700">
               <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileUpload} />
               Import Excel

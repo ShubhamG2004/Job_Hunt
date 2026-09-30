@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { getAuthenticatedRequest } from "@/lib/auth-server";
 import { getServerEnv } from "@/lib/server-env";
 import { isValidEmail } from "@/lib/validation";
 
@@ -15,6 +16,9 @@ function escapeHtml(value: string): string {
 
 export async function POST(request: Request) {
   try {
+    const authenticated = await getAuthenticatedRequest(request);
+    if (authenticated instanceof NextResponse) return authenticated;
+
     const payload = await request.json();
     const { to, subject, body } = payload || {};
 
