@@ -9,6 +9,8 @@ create table if not exists public.app_state (
 
 alter table public.app_state enable row level security;
 
+drop policy if exists "Service role can manage app state" on public.app_state;
+
 create policy "Service role can manage app state"
   on public.app_state
   for all

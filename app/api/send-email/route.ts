@@ -1,33 +1,58 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { getServerEnv } from "@/lib/server-env";
+import { isValidEmail } from "@/lib/validation";
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[character] || character);
+}
 
 export async function POST(request: Request) {
   try {
-    const { to, subject, body } = await request.json();
+    const payload = await request.json();
+    const { to, subject, body } = payload || {};
 
-    if (!to || !subject || !body) {
+    if (
+      typeof to !== "string" ||
+      !isValidEmail(to) ||
+      typeof subject !== "string" ||
+      !subject.trim() ||
+      subject.length > 500 ||
+      typeof body !== "string" ||
+      !body.trim() ||
+      body.length > 20000
+    ) {
       return NextResponse.json({ error: "Missing email fields." }, { status: 400 });
     }
 
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
-    if (!user || !pass) {
+    const host = getServerEnv("SMTP_HOST");
+    const port = Number(getServerEnv("SMTP_PORT") || 587);
+    const secure = getServerEnv("SMTP_SECURE") === "true";
+    const user = getServerEnv("SMTP_USER");
+    const pass = getServerEnv("SMTP_PASS");
+    if (!host || !Number.isInteger(port) || port < 1 || port > 65535 || !user || !pass) {
       return NextResponse.json({ error: "Email service is not configured." }, { status: 503 });
     }
 
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || "smtp.gmail.com",
-      port: Number(process.env.SMTP_PORT || 587),
-      secure: process.env.SMTP_SECURE === "true",
+      host,
+      port,
+      secure,
       auth: { user, pass },
     });
 
     await transporter.sendMail({
-      from: process.env.SMTP_FROM || user,
+      from: getServerEnv("SMTP_FROM") || user,
       to,
       subject,
       text: body,
-      html: `<pre style="font-family:Arial,sans-serif;white-space:pre-wrap;">${body}</pre>`,
+      html: `<pre style="font-family:Arial,sans-serif;white-space:pre-wrap;">${escapeHtml(body)}</pre>`,
     });
 
     return NextResponse.json({ success: true });

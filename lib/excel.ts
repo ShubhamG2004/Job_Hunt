@@ -71,7 +71,7 @@ export function contactsToWorkbook(contacts: Contact[]): XLSX.WorkBook {
   return workbook;
 }
 
-export function exportWorkbookAsBlob(workbook: XLSX.WorkBook, filename: string): Blob {
+export function exportWorkbookAsBlob(workbook: XLSX.WorkBook): Blob {
   const fileBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
   return new Blob([fileBuffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -79,7 +79,7 @@ export function exportWorkbookAsBlob(workbook: XLSX.WorkBook, filename: string):
 }
 
 export function downloadWorkbook(workbook: XLSX.WorkBook, filename: string) {
-  const blob = exportWorkbookAsBlob(workbook, filename);
+  const blob = exportWorkbookAsBlob(workbook);
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
