@@ -34,15 +34,17 @@ export async function loadCloudState(): Promise<CloudState | null> {
   }
 }
 
-async function updateCloudState(patch: Partial<CloudState>): Promise<void> {
+async function updateCloudState(patch: Partial<CloudState>): Promise<boolean> {
   try {
-    await fetch("/api/state", {
+    const response = await fetch("/api/state", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
     });
+    return response.ok;
   } catch {
     // Local persistence remains available if Supabase is not configured.
+    return false;
   }
 }
 
@@ -159,9 +161,9 @@ export async function loadTracker(): Promise<{ contacts: Contact[]; trackerFileN
   return value;
 }
 
-export async function saveTracker(tracker: { contacts: Contact[]; trackerFileName: string }): Promise<void> {
+export async function saveTracker(tracker: { contacts: Contact[]; trackerFileName: string }): Promise<boolean> {
   await writeStoreValue(TRACKER_KEY, tracker);
-  await updateCloudState(tracker);
+  return updateCloudState(tracker);
 }
 
 export function defaultTemplate(): EmailTemplate {

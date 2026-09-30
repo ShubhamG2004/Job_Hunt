@@ -140,8 +140,8 @@ export default function HomePage() {
       setContacts(imported);
       setTrackerLoaded(true);
       setTrackerFileName(file.name || "HR_Outreach_Tracker.xlsx");
-      await saveTracker({ contacts: imported, trackerFileName: file.name || "HR_Outreach_Tracker.xlsx" });
-      showToast("Tracker loaded successfully");
+      const savedToCloud = await saveTracker({ contacts: imported, trackerFileName: file.name || "HR_Outreach_Tracker.xlsx" });
+      showToast(savedToCloud ? "Tracker loaded and saved to the database" : "Tracker saved locally, but database sync failed. Check Supabase settings.");
     } catch {
       showToast("Invalid Excel file.");
     }
