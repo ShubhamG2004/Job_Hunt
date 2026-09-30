@@ -156,7 +156,13 @@ export default function HomePage() {
     setAuthMessage("");
     const result = authMode === "sign-in"
       ? await supabaseBrowser.auth.signInWithPassword({ email: authEmail, password: authPassword })
-      : await supabaseBrowser.auth.signUp({ email: authEmail, password: authPassword });
+      : await supabaseBrowser.auth.signUp({
+          email: authEmail,
+          password: authPassword,
+          options: {
+            emailRedirectTo: process.env.NEXT_PUBLIC_SITE_URL || window.location.origin,
+          },
+        });
     setAuthBusy(false);
 
     if (result.error) {
