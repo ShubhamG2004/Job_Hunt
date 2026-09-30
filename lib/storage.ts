@@ -118,6 +118,7 @@ export function loadProfile(): ProfileData {
 
 export function saveProfile(profile: ProfileData) {
   if (typeof window !== "undefined") {
+    window.localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
     void writeStoreValue(PROFILE_KEY, profile);
   }
   void updateCloudState({ profile });
@@ -146,6 +147,7 @@ export function loadTemplate(): EmailTemplate {
 
 export function saveTemplate(template: EmailTemplate) {
   if (typeof window !== "undefined") {
+    window.localStorage.setItem(TEMPLATE_KEY, JSON.stringify(template));
     void writeStoreValue(TEMPLATE_KEY, template);
   }
   void updateCloudState({ template });
