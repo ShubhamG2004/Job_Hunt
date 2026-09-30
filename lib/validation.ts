@@ -10,8 +10,8 @@ export function isValidEmail(value: string): boolean {
 }
 
 export function detectMissingColumns(headers: string[]): string[] {
-  const normalized = headers.map((header) => String(header).trim());
-  return REQUIRED_COLUMNS.filter((column) => !normalized.includes(column));
+  const normalized = new Set(headers.map((header) => String(header).trim().toLowerCase().replace(/\s+/g, " ")));
+  return REQUIRED_COLUMNS.filter((column) => !normalized.has(column.toLowerCase()));
 }
 
 export function safeText(value: unknown): string {

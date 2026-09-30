@@ -24,26 +24,30 @@ export function workbookToContacts(workbook: XLSX.WorkBook): Contact[] {
 
   return rows
     .map((row, index) => {
-      const name = safeText(row.Name || row.name || row["Name"]);
-      const email = safeText(row.Email || row.email || row["Email"]);
-      const title = safeText(row["Job Title"] || row.title || row["job title"] || row["JobTitle"] || row["Title"] || "");
-      const company = safeText(row.Company || row.company || row["Company"] || row["Company Name"] || row["Organization"] || "");
-      const statusValue = safeText(row.Status || row.status || row["Status"]);
+      const normalizedRow = Object.fromEntries(
+        Object.entries(row).map(([key, value]) => [key.trim().toLowerCase().replace(/\s+/g, " "), value])
+      );
+      const readCell = (...keys: string[]) => keys.map((key) => normalizedRow[key]).find((value) => value !== undefined);
+      const name = safeText(readCell("name"));
+      const email = safeText(readCell("email"));
+      const title = safeText(readCell("job title", "jobtitle", "title"));
+      const company = safeText(readCell("company", "company name", "organization"));
+      const statusValue = safeText(readCell("status"));
       const status: ContactStatus = ["Pending", "Sent", "Skipped", "Invalid"].includes(statusValue)
         ? (statusValue as ContactStatus)
         : "Pending";
 
       return {
-        id: safeText(row.ID || row.id || index + 1),
+        id: safeText(readCell("id") || index + 1),
         name,
         email,
         title,
         company,
         status,
-        sentDate: safeText(row["Sent Date"] || row.sentDate || ""),
-        sentTime: safeText(row["Sent Time"] || row.sentTime || ""),
-        subject: safeText(row.Subject || row.subject || ""),
-        notes: safeText(row.Notes || row.notes || ""),
+        sentDate: safeText(readCell("sent date", "sentdate")),
+        sentTime: safeText(readCell("sent time", "senttime")),
+        subject: safeText(readCell("subject")),
+        notes: safeText(readCell("notes")),
       };
     })
     .filter((contact) => contact.email || contact.name || contact.company);
